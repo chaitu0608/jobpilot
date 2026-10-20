@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>Job Pilot — local job-search cockpit</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --sunken:#f1f3f6; --line:#e5e7eb; --line-2:#d3d7de;
+    --text:#1b1f27; --muted:#5d6470; --faint:#8a919e;
+    --accent:#3355e0; --accent-weak:#eef1fd; --accent-text:#2a45c0;
+    --good:#1a7f47; --warn:#8a5a00; --bad:#b42318;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(16,24,40,.05);
+    --shadow-lg:0 16px 48px rgba(16,24,40,.16);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1116; --surface:#161922; --sunken:#1c2029; --line:#272c38; --line-2:#39404e;
+      --text:#e7e9ee; --muted:#a3aab8; --faint:#7b8291;
+      --accent:#7d9bff; --accent-weak:#1b2337; --accent-text:#adc2ff;
+      --good:#5ccb87; --warn:#e0b341; --bad:#f2786c;
+      --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
+    }
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  a{ color:var(--accent-text); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  h1,h2,h3{ letter-spacing:-.01em; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+  [hidden]{ display:none !important; }
+
+  /* controls */
+  button{ font:inherit; cursor:pointer; }
+  .btn{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line-2); background:var(--surface);
+    color:var(--text); border-radius:var(--radius-sm); padding:6px 11px; font-weight:500; transition:background .12s, border-color .12s; }
+  .btn:hover{ border-color:var(--faint); }
+  .btn-primary{ background:var(--accent); border-color:transparent; color:#fff; font-weight:600; }
+  .btn-primary:hover{ filter:brightness(1.06); }
+  .btn-ghost{ background:transparent; border-color:transparent; color:var(--muted); }
+  .btn-ghost:hover{ background:var(--sunken); color:var(--text); }
+  .btn:disabled{ opacity:.5; cursor:default; }
+  .btn-sm{ padding:4px 8px; font-size:12.5px; }
+  input, select, textarea{ font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--line-2);
+    border-radius:var(--radius-sm); padding:6px 9px; outline:none; max-width:100%; }
+  input:focus, select:focus, textarea:focus{ border-color:var(--accent); }
+  textarea{ resize:vertical; width:100%; }
+
+  /* shell */
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 16px; }
+  header.top{ position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .bar{ display:flex; align-items:center; gap:10px; padding:10px 0; flex-wrap:wrap; }
+  .brand{ font-weight:750; font-size:15px; letter-spacing:-.01em; }
+  .brand span{ color:var(--faint); font-weight:500; }
+  .spacer{ flex:1 1 auto; }
+  .status{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--faint); flex:none; }
+  .dot.on{ background:var(--good); } .dot.off{ background:var(--bad); }
+
+  nav.tabs{ display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; }
+  nav.tabs::-webkit-scrollbar{ display:none; }
+  .tab{ display:inline-flex; align-items:center; gap:7px; background:transparent; border:0; border-bottom:2px solid transparent;
+    color:var(--muted); padding:8px 11px; font-weight:500; white-space:nowrap; }
+  .tab:hover{ color:var(--text); }
+  .tab[aria-current="true"]{ color:var(--text); border-bottom-color:var(--accent); font-weight:600; }
+  .tab .n{ font-size:11.5px; color:var(--faint); background:var(--sunken); border-radius:999px; padding:0 6px; min-width:18px; text-align:center; }
+  .tab[aria-current="true"] .n{ color:var(--accent-text); background:var(--accent-weak); }
+
+  main{ padding:18px 0 72px; }
+  .sechead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:2px 0 12px; }
+  .sechead h1{ font-size:17px; margin:0; font-weight:680; }
+  .sechead p{ margin:0; color:var(--faint); font-size:12.5px; max-width:74ch; }
+  .toolbar{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .spread{ display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap; }
+
+  details.filters{ border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); margin-bottom:14px; }
+  details.filters > summary{ cursor:pointer; list-style:none; padding:9px 12px; font-size:12.5px; color:var(--muted); font-weight:600; }
+  details.filters > summary::-webkit-details-marker{ display:none; }
+  .filtergrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; padding:0 12px 12px; }
+  .filtergrid label{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--faint); }
+  .filtergrid label.wide{ grid-column:1/-1; }
+
+  ul.list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .item{ display:grid; grid-template-columns:auto 1fr auto; gap:10px 12px; align-items:start; background:var(--surface);
+    border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
+  .item:hover{ border-color:var(--line-2); }
+  .item.dim{ opacity:.72; }
+  .mark{ width:8px; height:8px; border-radius:50%; margin-top:6px; background:var(--faint); }
+  .mark.suitable{ background:var(--good); } .mark.review{ background:var(--warn); } .mark.excluded{ background:var(--bad); }
+  .ititle{ font-size:14.5px; font-weight:620; margin:0 0 2px; }
+  .ititle button{ all:unset; cursor:pointer; color:inherit; font:inherit; }
+  .ititle button:hover{ color:var(--accent-text); }
+  .imeta{ color:var(--muted); font-size:12.5px; display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+  .imeta .sep{ color:var(--line-2); }
+  .ireasons{ margin-top:5px; font-size:12px; color:var(--faint); }
+  .ireasons .ex{ color:var(--bad); } .ireasons .rv{ color:var(--warn); }
+  .iactions{ display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+  .pill{ font-size:11.5px; padding:1px 8px; border-radius:999px; background:var(--sunken); color:var(--muted); white-space:nowrap; }
+  .pill.fit{ color:var(--accent-text); background:var(--accent-weak); font-weight:600; }
+  .pill.good{ color:var(--good); } .pill.warn{ color:var(--warn); } .pill.bad{ color:var(--bad); }
+  .empty{ text-align:center; color:var(--muted); padding:44px 20px; background:var(--surface); border:1px dashed var(--line-2); border-radius:var(--radius); }
+  .empty h3{ margin:0 0 4px; font-size:14.5px; color:var(--text); }
+  .empty .row{ justify-content:center; margin-top:12px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:8px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:11px 13px; }
+  .card h3{ margin:0 0 2px; font-size:14px; font-weight:640; }
+  .card .sub{ color:var(--muted); font-size:12.5px; }
+  .kv{ display:grid; grid-template-columns:112px 1fr; gap:3px 10px; font-size:12.5px; margin:8px 0 0; }
+  .kv dt{ color:var(--faint); } .kv dd{ margin:0; overflow-wrap:anywhere; }
+  .card .actions{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; justify-content:flex-end; }
+  .mono{ font:12px ui-monospace, SFMono-Regular, Menlo, monospace; word-break:break-all; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+  /* drawer + modal */
+  .overlay{ position:fixed; inset:0; background:rgba(16,24,40,.34); opacity:0; pointer-events:none; transition:opacity .16s; z-index:40; }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .drawer{ position:fixed; top:0; right:0; bottom:0; width:min(620px,96vw); background:var(--surface); border-left:1px solid var(--line);
+    z-index:50; transform:translateX(102%); transition:transform .18s ease; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); }
+  .drawer.open{ transform:none; }
+  .dhead{ display:flex; align-items:center; gap:10px; padding:12px 15px; border-bottom:1px solid var(--line); }
+  .dhead .t{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--faint); }
+  .dbody{ overflow:auto; padding:15px; flex:1; }
+  .dbody h2{ font-size:18px; margin:0 0 6px; }
+  .dbody h3{ font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--faint); margin:20px 0 7px; }
+  .dbody pre{ white-space:pre-wrap; word-break:break-word; font:12.5px/1.6 ui-monospace, Menlo, monospace; color:var(--muted);
+    background:var(--sunken); border:1px solid var(--line); border-radius:var(--radius-sm); padding:11px; margin:0; max-height:340px; overflow:auto; }
+  .dbody img{ max-width:100%; border:1px solid var(--line); border-radius:var(--radius-sm); }
+  .modal{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:min(700px,94vw); max-height:88vh; background:var(--surface);
+    border:1px solid var(--line-2); border-radius:var(--radius); box-shadow:var(--shadow-lg); z-index:60; display:flex; flex-direction:column; }
+  #modalOverlay{ z-index:55; }
+  .mhead{ display:flex; align-items:center; gap:10px; padding:12px 15px; border-bottom:1px solid var(--line); }
+  .mhead h2{ font-size:15px; margin:0; }
+  .mbody{ overflow:auto; padding:15px; }
+  .mfoot{ display:flex; gap:8px; justify-content:flex-end; padding:11px 15px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .mbody p{ margin:0 0 10px; font-size:13px; }
+  .mbody label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+  table.pv{ border-collapse:collapse; width:100%; font-size:12px; }
+  table.pv th, table.pv td{ border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; }
+  table.pv th{ color:var(--faint); font-weight:600; }
+  .note{ font-size:12.5px; color:var(--muted); }
+  .banner{ border-radius:var(--radius-sm); padding:9px 11px; font-size:12.5px; margin:0 0 12px; }
+  .banner.warn{ background:color-mix(in srgb, var(--warn) 14%, transparent); color:var(--warn); }
+  .banner.bad{ background:color-mix(in srgb, var(--bad) 12%, transparent); color:var(--bad); }
+  .banner.ok{ background:color-mix(in srgb, var(--good) 12%, transparent); color:var(--good); }
+  .step{ display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--line); }
+  .step:last-child{ border-bottom:0; }
+  .step .st{ flex:none; font-size:11px; width:66px; color:var(--faint); text-transform:uppercase; letter-spacing:.04em; padding-top:2px; }
+  .toasts{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:6px; width:min(520px,92vw); }
+  .toast{ background:var(--surface); border:1px solid var(--line-2); padding:9px 13px; border-radius:var(--radius-sm); box-shadow:var(--shadow-lg); font-size:13px; }
+  .spin{ display:inline-block; width:12px; height:12px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .cap{ display:flex; align-items:center; gap:8px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); }
+  .cap:last-child{ border-bottom:0; }
+  .cap .cstate{ font-size:11.5px; color:var(--faint); }
+
+  @media (max-width:520px){
+    .wrap{ padding:0 11px; }
+    .item{ grid-template-columns:auto 1fr; }
+    .iactions{ grid-column:1/-1; justify-content:flex-start; }
+    .grid2{ grid-template-columns:1fr; }
+    .bar .toolbar{ width:100%; }
+    .bar .toolbar .btn{ flex:1 1 auto; justify-content:center; }
+    .filtergrid{ grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">Job Pilot <span>· local cockpit</span></div>
+      <span class="status" id="connStatus"><span class="dot off" id="connDot"></span><span id="connText">connecting…</span></span>
+      <span class="spacer"></span>
+      <div class="toolbar" id="topActions"></div>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<div class="overlay" id="overlay" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+  <div class="dhead"><span class="t" id="drawerKind">Details</span><span class="spacer"></span>
+    <button class="btn btn-ghost btn-sm" id="drawerClose" aria-label="Close">Close ✕</button></div>
+  <div class="dbody" id="drawerBody"></div>
+</aside>
+
+<div class="overlay" id="modalOverlay" hidden></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+  <div class="mhead"><h2 id="modalTitle"></h2><span class="spacer"></span>
+    <button class="btn btn-ghost btn-sm" id="modalClose" aria-label="Close">✕</button></div>
+  <div class="mbody" id="modalBody"></div>
+  <div class="mfoot" id="modalFoot"></div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module">
+'use strict';
+/* ---------------------------------------------------------------- utilities */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const cap = (s) => String(s || '').replace(/\b\w/g, (c) => c.toUpperCase());
+const ago = (iso) => {
+  if (!iso) return '—';
+  const d = (Date.now() - new Date(iso).getTime()) / 86400000;
+  if (!isFinite(d)) return '—';
+  if (d < 1/24) return Math.max(1, Math.round(d * 1440)) + 'm ago';
+  if (d < 1) return Math.round(d * 24) + 'h ago';
+  if (d < 30) return Math.round(d) + 'd ago';
+  return new Date(iso).toLocaleDateString();
+};
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { 'content-type': 'application/json' }, ...opts });
+  const ct = r.headers.get('content-type') || '';
+  const body = ct.includes('json') ? await r.json().catch(() => ({})) : await r.text();
+  if (!r.ok) throw new Error((body && body.error) || (r.status + ' ' + r.statusText));
+  return body;
+}
+let toastTimers = [];
+function toast(msg, ms = 4200) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.innerHTML = msg;
+  $('#toasts').appendChild(el);
+  toastTimers.push(setTimeout(() => el.remove(), ms));
+  if (toastTimers.length > 6) toastTimers = toastTimers.slice(-6);
+}
+function openModal({ title, body, actions = [] }) {
+  $('#modalTitle').textContent = title || '';
+  $('#modalBody').innerHTML = body || '';
+  const foot = $('#modalFoot'); foot.innerHTML = '';
+  for (const a of actions) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn' + (a.primary ? ' btn-primary' : '');
+    b.textContent = a.label; b.onclick = a.onClick; foot.appendChild(b);
+  }
+  $('#modal').hidden = false; $('#modalOverlay').hidden = false;
+  requestAnimationFrame(() => $('#modalOverlay').classList.add('show'));
+  $('#modalClose').focus();
+}
+function closeModal() { const m = $('#modal'); if (!m || m.hidden) return; m.hidden = true; const o = $('#modalOverlay'); o.classList.remove('show'); setTimeout(() => { o.hidden = true; }, 180); }
+
+/* --------------------------------------------------- shared classifiers */
+const elig = await import('/eligibility.js');
+const { classifyEligibility, BUCKET } = elig;
+
+const state = {
+  section: 'opportunities',
+  tab: 'all',
+  jobs: [], stats: {}, connections: null, criteria: null,
+  companies: [], contacts: [], pipeline: [], research: [], sites: [],
+  audit: [], filters: { q: '', bucket: '', role: '', city: '', tier: '', remote: false },
+};
+
+/* ------------------------------------------------------------ connections */
+function connDotOn() {
+  const c = state.connections || {};
+  const on = (c.browsy && c.browsy.connected) || (c.clinqy && c.clinqy.connected)
+    || (c.localBrowser && c.localBrowser.connected) || (c.extension && c.extension.connected);
+  return Boolean(on);
+}
+function renderConnStatus() {
+  const c = state.connections || {};
+  const b = c.browsy || {}, cl = c.clinqy || {}, lb = c.localBrowser || {}, ex = c.extension || {};
+  $('#connDot').className = 'dot ' + (connDotOn() ? 'on' : 'off');
+  const parts = [];
+  parts.push('Browser ' + (lb.connected ? 'engine connected' : b.connected ? 'Browsy connected' : 'offline'));
+  parts.push('Clinqy ' + (cl.connected ? 'connected' : cl.available ? 'ready' : 'not found'));
+  parts.push('extension ' + (ex.connected ? 'connected' : 'offline'));
+  $('#connText').textContent = parts.join(' · ');
+}
+
+/* -------------------------------------------------------------------- tabs */
+const TABS = [
+  { id: 'opportunities', label: 'Opportunities' },
+  { id: 'research', label: 'Research' },
+  { id: 'pipeline', label: 'Pipeline' },
+  { id: 'people', label: 'People & Companies' },
+  { id: 'connections', label: 'Connections' },
+];
+function tabCount(id) {
+  const s = state.stats || {};
+  const st = s.byStatus || {};
+  if (id === 'opportunities') return (st.new || 0) + (st.saved || 0);
+  if (id === 'pipeline') return state.pipeline.length;
+  if (id === 'people') return state.companies.length + state.contacts.length;
+  if (id === 'research') return state.research.length;
+  if (id === 'connections') return null;
+  return null;
+}
+function renderTabs() {
+  $('#tabs').innerHTML = TABS.map((t) => {
+    const n = tabCount(t.id);
+    return `<button class="tab" data-tab="${t.id}" aria-current="${state.section === t.id}">${esc(t.label)}${n == null ? '' : `<span class="n">${n}</span>`}</button>`;
+  }).join('');
+}
+
+/* top actions per section */
+function renderTopActions() {
+  const map = {
+    opportunities: [
+      ['Scan sources', 'scan', 'primary'],
+      ['Capture from browser', 'capture'],
+      ['Export', 'export'],
+      ['Digest', 'digest'],
+    ],
+    research: [['New research run', 'research-new', 'primary']],
+    pipeline: [['Export pipeline', 'export-pipeline']],
+    people: [['Export companies', 'export-companies'], ['Export contacts', 'export-contacts']],
+    connections: [['Recheck connections', 'recheck', 'primary']],
+  };
+  const acts = map[state.section] || [];
+  $('#topActions').innerHTML = acts.map(([label, act, cls]) => `<button class="btn ${cls === 'primary' ? 'btn-primary' : ''} btn-sm" data-act="${act}">${esc(label)}</button>`).join('');
+}
+
+/* ------------------------------------------------------------------- boot */
+async function boot() {
+  renderTabs();
+  await Promise.all([refreshState(), refreshConnections(), loadCriteria(), loadCompanies(), loadContacts(), loadPipeline(), loadResearch()]);
+  render();
+}
+async function refreshState() {
+  try {
+    const s = await api('/api/state');
+    state.stats = s.stats || {};
+    state.connections = s.connections || state.connections;
+    renderConnStatus(); renderTabs();
+  } catch { /* busy */ }
+}
+async function refreshConnections(refresh = false) {
+  try {
+    const c = await api('/api/connections' + (refresh ? '?refresh=1' : ''));
+    state.connections = { browsy: c.browsy, clinqy: c.clinqy, localBrowser: c.localBrowser, extension: c.extension };
+    state.clinqyCaps = c.clinqyCapabilities || [];
+    state.audit = c.audit || [];
+    renderConnStatus();
+  } catch { /* busy */ }
+}
+async function loadCriteria() {
+  try { state.criteria = (await api('/api/criteria')).criteria; } catch { /* default */ }
+}
+async function loadCompanies() { try { state.companies = (await api('/api/companies')).rows || []; } catch { /* */ } }
+async function loadContacts() { try { state.contacts = (await api('/api/contacts')).rows || []; } catch { /* */ } }
+async function loadPipeline() { try { state.pipeline = (await api('/api/pipeline')).rows || []; } catch { /* */ } }
+async function loadResearch() { try { const d = await api('/api/research/runs'); state.research = d.runs || []; state.sites = d.sites || []; } catch { /* */ } }
+
+function render() {
+  renderTabs(); renderTopActions();
+  const m = $('#main');
+  if (state.section === 'opportunities') return renderOpportunities(m);
+  if (state.section === 'research') return renderResearch(m);
+  if (state.section === 'pipeline') return renderPipeline(m);
+  if (state.section === 'people') return renderPeople(m);
+  if (state.section === 'connections') return renderConnections(m);
+}
+
+/* ============================================================ OPPORTUNITIES */
+
+const BUCKETS = [
+  { id: 'all', label: 'All captured' },
+  { id: 'suitable', label: 'Potentially suitable' },
+  { id: 'review', label: 'Needs review' },
+  { id: 'excluded', label: 'Excluded' },
+];
+
+async function renderOpportunities(m) {
+  m.innerHTML = `
+    <div class="sechead"><h1>Opportunities</h1>
+      <p>Every lead captured locally, with its fit and eligibility read from the title first. Excluded roles stay visible with the reason.</p></div>
+    <details class="filters" ${state.filters.q || state.filters.role || state.filters.city || state.filters.tier || state.filters.remote ? 'open' : ''}>
+      <summary>Filters</summary>
+      <div class="filtergrid">
+        <label class="wide">Search<input type="search" id="fq" value="${esc(state.filters.q)}" placeholder="title, company, text" /></label>
+        <label>Role family<select id="frole">
+          <option value="">Any</option>
+          ${elig.ROLE_FAMILIES.map((f) => `<option value="${f.key}" ${state.filters.role === f.key ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}
+          <option value="other" ${state.filters.role === 'other' ? 'selected' : ''}>Other / unclear</option>
+        </select></label>
+        <label>City<select id="fcity">
+          <option value="">Any</option>
+          ${['Mumbai','Pune','Bengaluru','Hyderabad','Other India','Remote (India eligible)','Restricted / outside India','Location unknown']
+            .map((c, i) => `<option value="${i}" ${String(state.filters.city) === String(i) ? 'selected' : ''}>${c}</option>`).join('')}
+        </select></label>
+        <label>Employer<select id="ftier">
+          <option value="">Any</option>
+          <option value="0" ${state.filters.tier === '0' ? 'selected' : ''}>MNC / large</option>
+          <option value="1" ${state.filters.tier === '1' ? 'selected' : ''}>Startup / scaleup</option>
+          <option value="2" ${state.filters.tier === '2' ? 'selected' : ''}>Other</option>
+        </select></label>
+        <label>&nbsp;<span class="row"><input type="checkbox" id="fremote" ${state.filters.remote ? 'checked' : ''} /> remote only</span></label>
+      </div>
+      <div class="row" style="padding:0 12px 12px">
+        <button class="btn btn-sm" id="fapply">Apply filters</button>
+        <button class="btn btn-ghost btn-sm" id="fclear">Clear</button>
+      </div>
+    </details>
+    <div class="spread" style="margin-bottom:8px">
+      <div class="toolbar">
+        ${BUCKETS.map((b) => `<button class="btn btn-sm ${state.tab === b.id ? 'btn-primary' : ''}" data-bucket="${b.id}">${esc(b.label)}</button>`).join('')}
+      </div>
+      <span class="note" id="oppCount"></span>
+    </div>
+    <ul class="list" id="oppList"><li class="empty"><span class="spin"></span></li></ul>`;
+
+  $('#fapply').onclick = () => { readFilters(); renderOpportunities(m); };
+  $('#fclear').onclick = () => { state.filters = { q: '', bucket: '', role: '', city: '', tier: '', remote: false }; renderOpportunities(m); };
+  $$('[data-bucket]', m).forEach((b) => b.onclick = () => { state.tab = b.dataset.bucket; renderOpportunities(m); });
+  loadJobs();
+}
+
+function readFilters() {
+  state.filters.q = $('#fq') ? $('#fq').value.trim() : '';
+  state.filters.role = $('#frole') ? $('#frole').value : '';
+  state.filters.city = $('#fcity') ? $('#fcity').value : '';
+  state.filters.tier = $('#ftier') ? $('#ftier').value : '';
+  state.filters.remote = $('#fremote') ? $('#fremote').checked : false;
+}
+
+async function loadJobs() {
+  const f = state.filters;
+  const q = new URLSearchParams();
+  if (f.q) q.set('q', f.q);
+  if (state.tab !== 'all') q.set('bucket', state.tab);
+  q.set('limit', '500');
+  try {
+    const d = await api('/api/jobs?' + q.toString());
+    state.jobs = d.rows || [];
+    state.jobsTotal = d.total;
+    renderJobList();
+  } catch (e) {
+    $('#oppList').innerHTML = `<li class="empty"><h3>Could not load opportunities</h3><span class="note">${esc(e.message)}</span></li>`;
+  }
+}
+
+function passesFilters(j) {
+  const f = state.filters;
+  if (f.role && j.eligibility.fit.role.key !== f.role) return false;
+  if (f.city !== '' && Number(j.eligibility.fit.city.rank) !== Number(f.city)) return false;
+  if (f.tier !== '' && Number(j.eligibility.fit.tier.rank) !== Number(f.tier)) return false;
+  if (f.remote && !j.remote) return false;
+  return true;
+}
+
+function rankJobs(rows) {
+  const order = { suitable: 0, review: 1, excluded: 2 };
+  return rows.slice().sort((a, b) => {
+    const A = a.eligibility, B = b.eligibility;
+    return (order[A.bucket] - order[B.bucket])
+      || (a.eligibility.fit.type.key === 'internship' && a.eligibility.fit.duration.stated ? -1 : 0)
+        - (b.eligibility.fit.type.key === 'internship' && b.eligibility.fit.duration.stated ? -1 : 0)
+      || (A.fit.city.rank - B.fit.city.rank)
+      || (A.fit.tier.rank - B.fit.tier.rank)
+      || (b.score - a.score)
+      || (b.id - a.id);
+  });
+}
+
+function renderJobList() {
+  const list = $('#oppList');
+  const rows = rankJobs(state.jobs.filter(passesFilters));
+  const c = { suitable: 0, review: 0, excluded: 0 };
+  for (const j of state.jobs) c[j.eligibility.bucket] = (c[j.eligibility.bucket] || 0) + 1;
+  $('#oppCount').textContent = `${rows.length} shown · ${c.suitable} suitable · ${c.review} review · ${c.excluded} excluded`;
+  if (!state.jobs.length) {
+    list.innerHTML = `<li class="empty"><h3>No opportunities yet</h3>
+      <span class="note">Capture hiring leads from your real Chrome session with the browser engine, or run a source scan.</span>
+      <div class="row"><button class="btn btn-primary btn-sm" data-act="scan">Scan sources</button>
+      <button class="btn btn-sm" data-act="capture">Capture from browser</button></div></li>`;
+    return;
+  }
+  if (!rows.length) { list.innerHTML = `<li class="empty"><h3>Nothing matches these filters</h3><div class="row"><button class="btn btn-sm" id="oppClear2">Clear filters</button></div></li>`; $('#oppClear2').onclick = () => { state.filters = { q:'',bucket:'',role:'',city:'',tier:'',remote:false }; render(); }; return; }
+  list.innerHTML = rows.map(jobRow).join('');
+}
+function bucketPill(b) {
+  const map = { suitable: ['good','Suitable'], review: ['warn','Review'], excluded: ['bad','Excluded'] };
+  const [cls, label] = map[b] || ['', b];
+  return `<span class="pill ${cls}">${label}</span>`;
+}
+function jobRow(j) {
+  const e = j.eligibility, f = e.fit;
+  const meta = [];
+  if (j.company || j.author) meta.push(`<strong>${esc(j.company || j.author)}</strong>`);
+  meta.push(esc(f.city.label));
+  if (f.type.key === 'internship') meta.push('Internship' + (f.duration.stated ? ' · 4–6 mo' : ''));
+  else if (f.type.confirmed) meta.push(esc(f.type.label));
+  meta.push(esc(f.role.label));
+  meta.push(ago(j.posted_at || j.first_seen_at));
+  const flagged = e.reasons.filter((r) => r.level === 'excluded' || r.level === 'review').slice(0, 2);
+  const reasons = flagged.length ? `<div class="ireasons">${flagged.map((r) => `<span class="${r.level === 'excluded' ? 'ex' : 'rv'}">${r.level === 'excluded' ? 'Excluded: ' : 'Review: '}</span>${esc(r.text)}`).join(' &nbsp; ')}</div>` : '';
+  const primary = e.bucket === 'excluded' ? 'Review' : 'Open';
+  return `<li class="item ${e.bucket === 'excluded' ? 'dim' : ''}" data-id="${j.id}">
+    <span class="mark ${e.bucket}" title="${esc(e.bucket)}"></span>
+    <div>
+      <h3 class="ititle"><button data-act="detail">${esc(j.title || '(untitled)')}</button></h3>
+      <div class="imeta">${meta.join('<span class="sep">·</span>')}</div>
+      ${reasons}
+    </div>
+    <div class="iactions">
+      <span class="pill fit" title="Fit score">${j.score}</span>
+      ${bucketPill(e.bucket)}
+      <button class="btn btn-sm" data-act="detail">${primary}</button>
+    </div></li>`;
+}
+
+/* -------- job drawer -------- */
+async function openJob(id) {
+  state.focusBefore = document.activeElement;
+  $('#drawerKind').textContent = 'Opportunity';
+  $('#overlay').hidden = false; requestAnimationFrame(() => $('#overlay').classList.add('show'));
+  $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false');
+  $('#drawerBody').innerHTML = '<p class="note"><span class="spin"></span> Loading…</p>';
+  try { renderJobDrawer(await api('/api/jobs/' + id)); }
+  catch (e) { $('#drawerBody').innerHTML = `<p>Could not open: <b>${esc(e.message)}</b></p>`; }
+  $('#drawerClose').focus();
+}
+function renderJobDrawer(j) {
+  const e = j.eligibility, f = e.fit;
+  const applyUrl = j.apply_url || j.source_url;
+  const reasons = e.reasons.map((r) => `<div class="cap"><span><span class="pill ${r.level === 'excluded' ? 'bad' : r.level === 'review' ? 'warn' : r.level === 'ok' ? 'good' : ''}">${esc(r.level)}</span> ${esc(r.text)}</span></div>`).join('');
+  const kv = [
+    ['Company', esc(j.company || j.author || '—')],
+    ['Location', esc(j.location || '—') + (j.remote ? ' · remote' : '')],
+    ['Opportunity', esc(f.type.label) + (f.type.basis === 'none' ? '' : ` (${esc(f.type.basis)})`)],
+    ['Duration', f.type.key === 'internship' ? esc(f.duration.label) : '—'],
+    ['Pay', esc(j.salary || (f.pay.stated ? f.pay.label : 'not stated'))],
+    ['Role family', esc(f.role.label) + (f.role.confidence === 'description' ? ' (via description)' : '')],
+    ['City', esc(f.city.label)],
+    ['Employer', esc(f.tier.label)],
+    ['Source', esc(j.source) + (j.seen_sources && j.seen_sources.length > 1 ? ' · seen on ' + esc(j.seen_sources.join(' + ')) : '')],
+    ['Posted', esc(ago(j.posted_at)) + ' · captured ' + esc(ago(j.first_seen_at))],
+    ['Posting', j.source_url ? `<a href="${esc(j.source_url)}" target="_blank" rel="noopener">open ↗</a>` : '—'],
+    ['Apply', applyUrl ? `<a href="${esc(applyUrl)}" target="_blank" rel="noopener">open ↗</a>` : '—'],
+  ];
+  const caps = (j.captures || []).map((c) => `<div class="cap"><span>${esc(c.method)} · ${esc(c.title || c.source_url || '')}</span><span class="cstate">${ago(c.captured_at)}</span></div>`).join('') || '<p class="note">No capture provenance recorded for this lead.</p>';
+  const statusBtns = ['new','saved','in_progress','applied','skipped','archived'].map((s) => `<button class="btn btn-sm ${j.status === s ? 'btn-primary' : ''}" data-status="${s}">${cap(s.replace('_',' '))}</button>`).join('');
+  const inPipe = Boolean(j.pipeline);
+
+  $('#drawerBody').innerHTML = `
+    <h2 id="drawerTitle">${esc(j.title || '(untitled)')}</h2>
+    <div class="imeta">${[j.company || j.author, f.city.label, ago(j.posted_at || j.first_seen_at)].filter(Boolean).map(esc).join(' · ')}</div>
+    <div class="row" style="margin:12px 0">
+      <button class="btn btn-primary btn-sm" data-jobact="brief">Application brief</button>
+      ${applyUrl ? '<button class="btn btn-sm" data-jobact="open">Open posting</button>' : ''}
+      <button class="btn btn-sm" data-jobact="${inPipe ? 'pipeline-edit' : 'pipeline-add'}">${inPipe ? 'Edit pipeline' : 'Add to pipeline'}</button>
+    </div>
+    <h3>Eligibility & fit</h3>
+    ${reasons || '<p class="note">No gating notes.</p>'}
+    <h3>Facts</h3>
+    <dl class="kv">${kv.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>
+    <h3>Capture provenance</h3>
+    ${caps}
+    <h3>Status</h3>
+    <div class="row">${statusBtns}</div>
+    <h3>Notes</h3>
+    <textarea id="jNotes" rows="3" placeholder="referral, follow-up date, interview notes">${esc(j.notes || '')}</textarea>
+    <div class="row" style="margin-top:7px"><button class="btn btn-sm" data-jobact="save-notes">Save note</button></div>
+    <h3>Posting text (captured)</h3>
+    <pre>${esc(j.description || '(none captured)')}</pre>`;
+
+  $('#drawerBody').querySelectorAll('[data-status]').forEach((b) => b.onclick = async () => {
+    await api(`/api/jobs/${j.id}/status`, { method: 'POST', body: JSON.stringify({ status: b.dataset.status }) });
+    toast('Marked <b>' + esc(b.dataset.status.replace('_',' ')) + '</b>'); refreshState(); openJob(j.id);
+  });
+  $('#drawerBody').querySelector('[data-jobact="open"]')?.addEventListener('click', () => window.open(applyUrl, '_blank', 'noopener'));
+  $('#drawerBody').querySelector('[data-jobact="save-notes"]').onclick = async () => {
+    await api(`/api/jobs/${j.id}/notes`, { method: 'POST', body: JSON.stringify({ notes: $('#jNotes').value }) });
+    toast('Note saved.');
+  };
+  $('#drawerBody').querySelector('[data-jobact="brief"]').onclick = () => openBrief(j.id);
+  const pipeBtn = $('#drawerBody').querySelector('[data-jobact="pipeline-add"], [data-jobact="pipeline-edit"]');
+  if (pipeBtn) pipeBtn.onclick = () => openPipelineEditor(j);
+}
+
+/* -------- application brief -------- */
+async function openBrief(jobId) {
+  const d = await api(`/api/jobs/${jobId}/brief`).catch((e) => ({ error: e.message }));
+  if (d.error) return toast('Could not build brief: ' + esc(d.error));
+  openModal({
+    title: 'Application brief (editable)',
+    body: `<p class="note">Facts only from the captured posting. Edit freely, then save to the pipeline. Nothing is sent.</p>
+      <textarea id="briefText" rows="18">${esc(d.markdown)}</textarea>`,
+    actions: [
+      { label: 'Download .md', onClick: () => window.open(`/api/jobs/${jobId}/brief.md`, '_blank') },
+      { label: 'Cancel', onClick: closeModal },
+      { label: 'Save to pipeline', primary: true, onClick: async () => {
+        const md = $('#briefText').value;
+        await api(`/api/jobs/${jobId}/brief`, { method: 'POST', body: JSON.stringify({ markdown: md }) });
+        closeModal(); toast('Brief saved.'); loadPipeline();
+      } },
+    ],
+  });
+}
+
+/* -------- add/edit pipeline -------- */
+async function openPipelineEditor(job) {
+  const existing = job.pipeline || {};
+  const companyOpts = state.companies.map((c) => `<option value="${c.id}" ${existing.company_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const contactOpts = state.contacts.map((c) => `<option value="${c.id}" ${existing.contact_id === c.id ? 'selected' : ''}>${esc(c.name || 'contact')}</option>`).join('');
+  openModal({
+    title: existing.id ? 'Edit pipeline entry' : 'Add to pipeline',
+    body: `
+      <p class="note">${esc(job.title)} · ${esc(job.company || job.author || '')}</p>
+      <label>Status<select id="pStatus">${['shortlisted','reviewing','drafting','applied','interview','rejected','offer','withdrawn','archived'].map((s) => `<option value="${s}" ${existing.status === s ? 'selected' : ''}>${cap(s)}</option>`).join('')}</select></label>
+      <label>Company target</label>
+      <div class="row"><select id="pCompany"><option value="">— none —</option>${companyOpts}</select>
+        <input id="pCompanyNew" placeholder="or type a new company" /></div>
+      <label>Contact</label>
+      <select id="pContact"><option value="">— none —</option>${contactOpts}</select>
+      <label>Next action</label>
+      <input id="pNext" value="${esc(existing.next_action || '')}" placeholder="e.g. Send intro email to recruiter" />
+      <label>Next action date</label>
+      <input id="pDate" type="date" value="${esc(existing.next_action_date || '')}" />`,
+    actions: [
+      { label: 'Cancel', onClick: closeModal },
+      { label: existing.id ? 'Save' : 'Add', primary: true, onClick: async () => {
+        const body = { job_id: job.id, status: $('#pStatus').value, next_action: $('#pNext').value, next_action_date: $('#pDate').value };
+        if ($('#pCompanyNew').value.trim()) { body.company_name = $('#pCompanyNew').value.trim(); }
+        else if ($('#pCompany').value) body.company_id = Number($('#pCompany').value);
+        else body.company_id = null;
+        body.contact_id = $('#pContact').value ? Number($('#pContact').value) : null;
+        try {
+          await api('/api/pipeline', { method: 'POST', body: JSON.stringify(body) });
+          closeModal(); toast('Pipeline updated.'); await Promise.all([loadPipeline(), loadCompanies()]); closeDrawer();
+        } catch (e) { toast('Could not save: ' + esc(e.message)); }
+      } },
+    ],
+  });
+}
+
+/* -------- capture from browser -------- */
+async function openCapture() {
+  openModal({ title: 'Capture from your browser', body: '<p class="note"><span class="spin"></span> Reading open tabs…</p>', actions: [{ label: 'Cancel', onClick: closeModal }] });
+  try {
+    const d = await api('/api/browsy/tabs');
+    if (!d.tabs || !d.tabs.length) { $('#modalBody').innerHTML = '<div class="banner warn">No tabs found. Make sure the Job Pilot extension is loaded in Chrome and Chrome is open.</div>'; return; }
+    const rows = d.tabs.map((t) => `<tr><td><input type="radio" name="capTab" value="${t.id}" /></td><td>${esc(t.title || '(untitled)')}</td><td class="mono">${esc((t.url || '').slice(0, 60))}</td></tr>`).join('');
+    $('#modalBody').innerHTML = `<p class="note">Pick the tab showing the posting. A snapshot is read-only.</p>
+      <div style="max-height:340px;overflow:auto"><table class="pv"><thead><tr><th></th><th>Tab</th><th>URL</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    $('#modalFoot').innerHTML = '';
+    const foot = $('#modalFoot');
+    const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = 'Cancel'; cancel.onclick = closeModal;
+    const go = document.createElement('button'); go.className = 'btn btn-primary'; go.textContent = 'Snapshot & review';
+    go.onclick = async () => {
+      const sel = document.querySelector('input[name="capTab"]:checked');
+      if (!sel) return toast('Pick a tab first.');
+      go.disabled = true; go.innerHTML = '<span class="spin"></span> capturing…';
+      try {
+        const r = await api('/api/browsy/capture', { method: 'POST', body: JSON.stringify({ tabId: Number(sel.value) }) });
+        openCaptureReview(r);
+      } catch (e) { toast('Capture failed: ' + esc(e.message)); go.disabled = false; go.textContent = 'Snapshot & review'; }
+    };
+    foot.appendChild(cancel); foot.appendChild(go);
+  } catch (e) {
+    $('#modalBody').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`;
+  }
+}
+function openCaptureReview(r) {
+  const f = r.extraction.fields;
+  const field = (k, label, extra = '') => `<label>${esc(label)} <span class="note">${f[k] && f[k].basis ? '· ' + esc(f[k].basis) : '· not found'}</span><input id="cap_${k}" value="${esc(f[k] ? (f[k].value ?? '') : '')}" ${extra} /></label>`;
+  openModal({
+    title: 'Review captured posting',
+    body: `
+      <div class="banner ok">Captured ${esc(ago(r.capturedAt))} from <span class="mono">${esc(r.url || '(no url)')}</span></div>
+      <p class="note">Edit every field. Blank stays blank — nothing is guessed. Import creates one lead with this provenance.</p>
+      <div class="grid2">
+        ${field('title', 'Title')}
+        ${field('company', 'Company')}
+        ${field('location', 'Location')}
+        ${field('pay', 'Pay (if stated)')}
+        ${field('type', 'Opportunity type')}
+        ${field('applyEmail', 'Apply email')}
+      </div>
+      <label>Requirements <span class="note">· editable</span><textarea id="cap_requirements" rows="3">${esc((f.requirements && f.requirements.value) || '')}</textarea></label>
+      <label>Description / captured text<textarea id="cap_description" rows="6">${esc(r.extraction.description || '')}</textarea></label>
+      <label>Source URL<input id="cap_sourceUrl" value="${esc(r.url || '')}" /></label>`,
+    actions: [
+      { label: 'Discard', onClick: closeModal },
+      { label: 'Import lead', primary: true, onClick: async () => {
+        const fields = {
+          title: $('#cap_title').value, company: $('#cap_company').value, location: $('#cap_location').value,
+          pay: $('#cap_pay').value, type: $('#cap_type').value, requirements: $('#cap_requirements').value,
+          description: $('#cap_description').value, apply_email: $('#cap_applyEmail').value,
+        };
+        try {
+          await api('/api/captures/import', { method: 'POST', body: JSON.stringify({ captureId: r.captureId, source_url: $('#cap_sourceUrl').value, fields }) });
+          closeModal(); toast('Lead imported with provenance.'); refreshState(); loadJobs();
+        } catch (e) { toast('Import failed: ' + esc(e.message)); }
+      } },
+    ],
+  });
+}
+
+/* -------- scan / export / digest -------- */
+async function doScan() {
+  openModal({
+    title: 'Scan sources',
+    body: `<p class="note">Server-side capture from employer boards (Greenhouse/Lever/Ashby), RemoteOK, HN and Reddit RSS. Browser sources use your logged-in Chrome.</p>`,
+    actions: [
+      { label: 'Cancel', onClick: closeModal },
+      { label: 'Boards & feeds', primary: true, onClick: async () => {
+        closeModal(); try { await api('/api/scan', { method: 'POST', body: JSON.stringify({ sources: ['boards','hn','reddit'] }) }); toast('Scanning boards, HN and Reddit — about a minute.'); } catch (e) { toast('Scan failed: ' + esc(e.message)); }
+      } },
+      { label: 'X (browser)', onClick: async () => { closeModal(); try { const d = await api('/api/ext/scan', { method: 'POST', body: JSON.stringify({ target: 'x' }) }); toast('Queued X scan #' + d.queued); } catch (e) { toast(esc(e.message)); } } },
+      { label: 'Reddit (browser)', onClick: async () => { closeModal(); try { const d = await api('/api/ext/scan', { method: 'POST', body: JSON.stringify({ target: 'reddit' }) }); toast('Queued Reddit scan #' + d.queued); } catch (e) { toast(esc(e.message)); } } },
+    ],
+  });
+}
+function openExport() {
+  openModal({
+    title: 'Export',
+    body: '<p class="note">Spreadsheet-ready downloads. CSV cells are escaped against formula injection.</p>',
+    actions: [
+      { label: 'Jobs CSV', onClick: () => window.open('/api/export/jobs.csv', '_blank') },
+      { label: 'Jobs JSON', onClick: () => window.open('/api/export/jobs.json', '_blank') },
+      { label: 'Pipeline CSV', onClick: () => window.open('/api/export/pipeline.csv', '_blank') },
+      { label: 'Pipeline JSON', onClick: () => window.open('/api/export/pipeline.json', '_blank') },
+      { label: 'Close', primary: true, onClick: closeModal },
+    ],
+  });
+}
+async function openDigest() {
+  try {
+    const d = await api('/api/digest');
+    $('#drawerKind').textContent = 'Digest';
+    $('#overlay').hidden = false; requestAnimationFrame(() => $('#overlay').classList.add('show'));
+    $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false');
+    $('#drawerBody').innerHTML = `<h2 id="drawerTitle">Digest</h2><pre>${esc(d.markdown)}</pre>`;
+  } catch (e) { toast('Digest failed: ' + esc(e.message)); }
+}
+
+/* =============================================================== RESEARCH */
+
+async function renderResearch(m) {
+  m.innerHTML = `
+    <div class="sechead"><h1>Research</h1>
+      <p>Build targeted searches for a city, role and employer, then open them through the browser engine. Results feed the same capture workflow — nothing is auto-scraped or marked done for you.</p></div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>New research run</h3>
+      <div class="grid2" style="margin-top:8px">
+        <label>City<input id="rCity" placeholder="Mumbai" value="${esc((state.criteria && state.criteria.cities && state.criteria.cities[0]) || 'Mumbai')}" /></label>
+        <label>Role<input id="rRole" placeholder="software engineer intern" /></label>
+        <label>Employer (optional)<input id="rEmployer" placeholder="any" /></label>
+      </div>
+      <label style="margin-top:8px">Sites</label>
+      <div class="row">${(state.sites.length ? state.sites : [{id:'careers',label:'Official careers'},{id:'linkedin',label:'LinkedIn Jobs'},{id:'indeed',label:'Indeed'},{id:'unstop',label:'Unstop'}]).map((s) => `<label class="row" style="font-size:12.5px"><input type="checkbox" class="rSite" value="${s.id}" checked /> ${esc(s.label)}</label>`).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="btn btn-primary btn-sm" id="rCreate">Create run &amp; build queries</button></div>
+    </div>
+    <ul class="list" id="researchList"></ul>`;
+  $('#rCreate').onclick = async () => {
+    const sites = $$('.rSite').filter((c) => c.checked).map((c) => c.value);
+    try {
+      await api('/api/research/runs', { method: 'POST', body: JSON.stringify({ city: $('#rCity').value, role: $('#rRole').value, employer: $('#rEmployer').value, sites }) });
+      toast('Research run created.'); await loadResearch(); renderResearch(m);
+    } catch (e) { toast('Could not create run: ' + esc(e.message)); }
+  };
+  renderResearchList();
+}
+function renderResearchList() {
+  const list = $('#researchList');
+  if (!state.research.length) { list.innerHTML = '<li class="empty"><h3>No research runs yet</h3><span class="note">Create one above to generate targeted queries.</span></li>'; return; }
+  list.innerHTML = state.research.map((run) => {
+    const steps = (run.steps || []).map((s) => `
+      <div class="step">
+        <span class="st">${esc(s.status)}</span>
+        <div style="flex:1">
+          <div><strong>${esc(s.label)}</strong> <span class="note mono">${esc((s.url || '').slice(0, 70))}</span></div>
+          ${s.note ? `<div class="note">${esc(s.note)}</div>` : ''}
+        </div>
+        <div class="iactions">
+          ${s.status !== 'done' ? `<button class="btn btn-sm" data-rstep-open="${s.id}" data-run="${run.id}">Open</button>` : ''}
+          <button class="btn btn-sm" data-rstep-ok="${s.id}" data-run="${run.id}">Found</button>
+          <button class="btn btn-sm" data-rstep-skip="${s.id}" data-run="${run.id}">Skip</button>
+        </div>
+      </div>`).join('');
+    const ctrl = run.status === 'active'
+      ? `<button class="btn btn-sm" data-rstatus="paused" data-run="${run.id}">Pause</button>`
+      : run.status === 'paused' ? `<button class="btn btn-sm" data-rstatus="active" data-run="${run.id}">Resume</button>` : '';
+    return `<li class="item" style="grid-template-columns:1fr">
+      <div>
+        <div class="spread">
+          <h3 class="ititle">${esc(run.role || 'research')} · ${esc(run.city || '')}${run.employer ? ' · ' + esc(run.employer) : ''}</h3>
+          <div class="iactions"><span class="pill">${esc(run.status)}</span>${ctrl}
+            <button class="btn btn-sm" data-rstatus="completed" data-run="${run.id}">Complete</button>
+            <button class="btn btn-sm" data-rstatus="cancelled" data-run="${run.id}">Cancel</button></div>
+        </div>
+        <div style="margin-top:8px">${steps || '<span class="note">No steps.</span>'}</div>
+      </div></li>`;
+  }).join('');
+
+  list.querySelectorAll('[data-rstep-open]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+    try { const r = await api(`/api/research/runs/${b.dataset.run}/step/${b.dataset.rstepOpen}/open`, { method: 'POST' }); toast('Opened in Chrome' + (r.tabId ? ' (tab ' + r.tabId + ')' : '')); await loadResearch(); renderResearchList(); }
+    catch (e) { toast('Could not open: ' + esc(e.message)); b.disabled = false; b.textContent = 'Open'; }
+  });
+  list.querySelectorAll('[data-rstep-ok]').forEach((b) => b.onclick = () => setStep(b.dataset.run, b.dataset.rstepOk, 'done'));
+  list.querySelectorAll('[data-rstep-skip]').forEach((b) => b.onclick = () => setStep(b.dataset.run, b.dataset.rstepSkip, 'skipped'));
+  list.querySelectorAll('[data-rstatus]').forEach((b) => b.onclick = async () => {
+    try { await api(`/api/research/runs/${b.dataset.run}/status`, { method: 'POST', body: JSON.stringify({ status: b.dataset.rstatus }) }); await loadResearch(); renderResearchList(); }
+    catch (e) { toast(esc(e.message)); }
+  });
+}
+async function setStep(runId, stepId, status) {
+  let note = '';
+  if (status === 'done') note = window.prompt('Optional note (what did you find?)') || '';
+  try { await api(`/api/research/runs/${runId}/step/${stepId}/result`, { method: 'POST', body: JSON.stringify({ status, note }) }); await loadResearch(); renderResearchList(); }
+  catch (e) { toast(esc(e.message)); }
+}
+
+/* =============================================================== PIPELINE */
+
+async function renderPipeline(m) {
+  m.innerHTML = `
+    <div class="sechead"><h1>Pipeline</h1>
+      <p>Applications you are tracking, linked to a company target and a contact. You send and submit everything yourself.</p></div>
+    <ul class="list" id="pipeList"></ul>`;
+  if (!state.pipeline.length) {
+    $('#pipeList').innerHTML = `<li class="empty"><h3>No applications in the pipeline</h3>
+      <span class="note">Open an opportunity and choose “Add to pipeline” to track it.</span>
+      <div class="row"><button class="btn btn-primary btn-sm" data-goto="opportunities">Go to Opportunities</button></div></li>`;
+    return;
+  }
+  $('#pipeList').innerHTML = state.pipeline.map((p) => {
+    const job = p.job || {};
+    const meta = [p.company ? p.company.name : job.company, p.contact ? p.contact.name : null].filter(Boolean).map(esc).join(' · ');
+    return `<li class="item" data-id="${p.id}">
+      <span class="mark"></span>
+      <div>
+        <h3 class="ititle">${esc(job.title || '(job)')}</h3>
+        <div class="imeta">${meta || '<span class="note">no company/contact linked</span>'}</div>
+        <div class="imeta" style="margin-top:4px">
+          <select data-pstatus="${p.id}" style="font-size:12px;padding:2px 6px">
+            ${['shortlisted','reviewing','drafting','applied','interview','rejected','offer','withdrawn','archived'].map((s) => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${cap(s)}</option>`).join('')}
+          </select>
+          <input data-pnext="${p.id}" value="${esc(p.next_action || '')}" placeholder="next action" style="font-size:12px;padding:2px 6px;width:180px" />
+          <input type="date" data-pdate="${p.id}" value="${esc(p.next_action_date || '')}" style="font-size:12px;padding:2px 6px" />
+        </div>
+      </div>
+      <div class="iactions">
+        <button class="btn btn-sm" data-pbrief="${p.job_id}">Brief</button>
+        <button class="btn btn-sm btn-ghost" data-pdel="${p.job_id}">Remove</button>
+      </div></li>`;
+  }).join('');
+
+  $('#pipeList').querySelectorAll('[data-pstatus]').forEach((el) => el.onchange = () => savePipeline(el.dataset.pstatus, { status: el.value }));
+  $('#pipeList').querySelectorAll('[data-pnext]').forEach((el) => el.onchange = () => savePipeline(el.dataset.pnext, { next_action: el.value }));
+  $('#pipeList').querySelectorAll('[data-pdate]').forEach((el) => el.onchange = () => savePipeline(el.dataset.pdate, { next_action_date: el.value }));
+  $('#pipeList').querySelectorAll('[data-pbrief]').forEach((b) => b.onclick = () => openBrief(b.dataset.pbrief));
+  $('#pipeList').querySelectorAll('[data-pdel]').forEach((b) => b.onclick = async () => {
+    if (!window.confirm('Remove this job from the pipeline?')) return;
+    await api('/api/pipeline/' + b.dataset.pdel, { method: 'DELETE' }); await loadPipeline(); render();
+  });
+}
+async function savePipeline(jobId, patch) {
+  try { await api('/api/pipeline', { method: 'POST', body: JSON.stringify({ job_id: Number(jobId), ...patch }) }); toast('Saved.'); }
+  catch (e) { toast('Could not save: ' + esc(e.message)); }
+}
+
+/* ========================================================= PEOPLE & COMPANIES */
+
+async function renderPeople(m) {
+  m.innerHTML = `
+    <div class="sechead"><h1>People &amp; Companies</h1>
+      <p>Your own company targets and public contacts, stored locally and linkable to any opportunity. Paste-import from a sheet still works.</p></div>
+    <div class="spread" style="margin-bottom:10px">
+      <h2 style="font-size:15px;margin:0">Company targets</h2>
+      <div class="toolbar"><button class="btn btn-sm" id="addCompany">Add company</button>
+        <button class="btn btn-sm" id="importSheet">Import from sheet</button></div>
+    </div>
+    <div class="cards" id="companyCards"></div>
+    <div class="spread" style="margin:22px 0 10px">
+      <h2 style="font-size:15px;margin:0">Contacts</h2>
+      <div class="toolbar"><button class="btn btn-sm" id="addContact">Add contact</button></div>
+    </div>
+    <div class="cards" id="contactCards"></div>`;
+
+  $('#addCompany').onclick = () => companyForm(null);
+  $('#addContact').onclick = () => contactForm(null);
+  $('#importSheet').onclick = () => openImport();
+  renderCompanyCards(); renderContactCards();
+}
+function renderCompanyCards() {
+  const box = $('#companyCards');
+  box.innerHTML = state.companies.length ? state.companies.map((c) => {
+    const d = c.data || {};
+    const pairs = [['Grade', d.grade], ['Roles', d.roles], ['Cities', d.cities], ['Notes', d.notes]].filter(([, v]) => v);
+    const contacts = state.contacts.filter((x) => x.company_id === c.id).length;
+    const linked = state.pipeline.filter((p) => p.company_id === c.id).length;
+    return `<div class="card"><h3>${esc(c.name)}</h3>
+      <div class="sub">${contacts} contact(s) · ${linked} linked job(s)</div>
+      <dl class="kv">${pairs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('') || '<dt>—</dt><dd></dd>'}</dl>
+      <div class="actions"><button class="btn btn-sm" data-cedit="${c.id}">Edit</button><button class="btn btn-sm btn-ghost" data-cdel="${c.id}">Remove</button></div></div>`;
+  }).join('') : '<div class="empty"><h3>No company targets yet</h3><div class="row"><button class="btn btn-sm btn-primary" id="addCompanyEmpty">Add company</button></div></div>';
+  const e = $('#addCompanyEmpty'); if (e) e.onclick = () => companyForm(null);
+  box.querySelectorAll('[data-cedit]').forEach((b) => b.onclick = () => companyForm(state.companies.find((c) => c.id === Number(b.dataset.cedit))));
+  box.querySelectorAll('[data-cdel]').forEach((b) => b.onclick = async () => {
+    if (!window.confirm('Remove this company target?')) return;
+    await api('/api/companies/' + b.dataset.cdel, { method: 'DELETE' }); await Promise.all([loadCompanies(), loadContacts(), loadPipeline()]); render();
+  });
+}
+function renderContactCards() {
+  const box = $('#contactCards');
+  box.innerHTML = state.contacts.length ? state.contacts.map((c) => {
+    const d = c.data || {};
+    const comp = state.companies.find((x) => x.id === c.company_id);
+    const pairs = [['Role', d.title], ['Email', d.email], ['Verification', d.verification], ['Angle', d.angle]].filter(([, v]) => v);
+    return `<div class="card"><h3>${esc(c.name || '(contact)')}</h3>
+      <div class="sub">${comp ? esc(comp.name) : 'no company linked'}</div>
+      <dl class="kv">${pairs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('') || '<dt>—</dt><dd></dd>'}</dl>
+      ${d.link ? `<div class="note" style="margin-top:6px"><a href="${esc(d.link)}" target="_blank" rel="noopener">public source ↗</a></div>` : ''}
+      <div class="actions"><button class="btn btn-sm" data-cedit2="${c.id}">Edit</button><button class="btn btn-sm btn-ghost" data-cedel2="${c.id}">Remove</button></div></div>`;
+  }).join('') : '<div class="empty"><h3>No contacts yet</h3><span class="note">Add recruiters you found publicly, with the source link.</span><div class="row"><button class="btn btn-sm btn-primary" id="addContactEmpty">Add contact</button></div></div>';
+  const e = $('#addContactEmpty'); if (e) e.onclick = () => contactForm(null);
+  box.querySelectorAll('[data-cedit2]').forEach((b) => b.onclick = () => contactForm(state.contacts.find((c) => c.id === Number(b.dataset.cedit2))));
+  box.querySelectorAll('[data-cedel2]').forEach((b) => b.onclick = async () => {
+    if (!window.confirm('Remove this contact?')) return;
+    await api('/api/contacts/' + b.dataset.cedel2, { method: 'DELETE' }); await Promise.all([loadContacts(), loadPipeline()]); render();
+  });
+}
+function companyForm(c) {
+  const d = c ? c.data || {} : {};
+  openModal({ title: c ? 'Edit company' : 'Add company', body: `
+    <label>Name<input id="coName" value="${esc(c ? c.name : '')}" /></label>
+    <label>Grade / tier<input id="coGrade" value="${esc(d.grade || '')}" /></label>
+    <label>Role families<input id="coRoles" value="${esc(d.roles || '')}" /></label>
+    <label>Cities<input id="coCities" value="${esc(d.cities || '')}" /></label>
+    <label>Notes<textarea id="coNotes" rows="2">${esc(d.notes || '')}</textarea></label>`,
+    actions: [{ label: 'Cancel', onClick: closeModal }, { label: 'Save', primary: true, onClick: async () => {
+      const name = $('#coName').value.trim(); if (!name) return toast('Name is required.');
+      const data = { grade: $('#coGrade').value, roles: $('#coRoles').value, cities: $('#coCities').value, notes: $('#coNotes').value };
+      try { if (c) await api('/api/companies/' + c.id, { method: 'POST', body: JSON.stringify({ name, data }) }); else await api('/api/companies', { method: 'POST', body: JSON.stringify({ name, data }) }); closeModal(); await loadCompanies(); render(); }
+      catch (e) { toast('Could not save: ' + esc(e.message)); }
+    } }] });
+}
+function contactForm(c) {
+  const d = c ? c.data || {} : {};
+  const compOpts = state.companies.map((x) => `<option value="${x.id}" ${c && c.company_id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+  openModal({ title: c ? 'Edit contact' : 'Add contact', body: `
+    <label>Name<input id="ctName" value="${esc(c ? c.name : '')}" /></label>
+    <label>Company<select id="ctCompany"><option value="">— none —</option>${compOpts}</select></label>
+    <label>Role / title<input id="ctTitle" value="${esc(d.title || '')}" /></label>
+    <label>Email<input id="ctEmail" value="${esc(d.email || '')}" /></label>
+    <label>Public source link<input id="ctLink" value="${esc(d.link || '')}" /></label>
+    <label>Verification<select id="ctVer"><option value="">Not stated</option>${['public profile','company page','referral','unverified'].map((v) => `<option value="${v}" ${d.verification === v ? 'selected' : ''}>${cap(v)}</option>`).join('')}</select></label>
+    <label>Approach angle<textarea id="ctAngle" rows="2">${esc(d.angle || '')}</textarea></label>`,
+    actions: [{ label: 'Cancel', onClick: closeModal }, { label: 'Save', primary: true, onClick: async () => {
+      const name = $('#ctName').value.trim(); if (!name) return toast('Name is required.');
+      const body = { id: c ? c.id : undefined, name, company_id: $('#ctCompany').value ? Number($('#ctCompany').value) : null, data: { title: $('#ctTitle').value, email: $('#ctEmail').value, link: $('#ctLink').value, verification: $('#ctVer').value, angle: $('#ctAngle').value } };
+      try { await api('/api/contacts', { method: 'POST', body: JSON.stringify(body) }); closeModal(); await Promise.all([loadContacts(), loadPipeline()]); render(); }
+      catch (e) { toast('Could not save: ' + esc(e.message)); }
+    } }] });
+}
+
+/* -------- legacy sheet import (kept compatible) -------- */
+const HEADER_MAPS = {
+  target: [['company', ['company','company name','employer','org','firm','name']],['grade',['grade','tier','band']],['roles',['roles','role','role families','function']],['cities',['cities','city','location']],['djsce',['djsce']],['spit',['spit']],['kjseePlaced',['kjsce placed','placed']],['kjseeVisit',['kjsce visit','campus visit']],['cameThisYear',['came this year','came']],['notes',['notes','remarks']]],
+  outreach: [['company',['company','employer','org']],['contact',['contact','name','recruiter','person']],['title',['title','role','designation']],['link',['link','profile','url','source']],['confidence',['confidence','verified']],['angle',['angle','approach']],['draft',['draft','message']],['status',['status']],['email',['email','mail']]],
+  role: [['role',['role','family','function']],['companies',['companies','employers']],['cities',['cities','location']],['skills',['skills','stack']],['notes',['notes']]],
+};
+const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function parseDelimited(text) {
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim() !== '');
+  if (!lines.length) return { headers: [], rows: [] };
+  const tabs = (lines[0].match(/\t/g) || []).length, commas = (lines[0].match(/,/g) || []).length;
+  const delim = tabs >= commas && tabs > 0 ? '\t' : ',';
+  const parseLine = (line) => {
+    if (delim === '\t') return line.split('\t');
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+      else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur); return out;
+  };
+  return { headers: parseLine(lines[0]).map((h) => h.trim()), rows: lines.slice(1).map(parseLine) };
+}
+function openImport() {
+  openModal({
+    title: 'Import from your sheet',
+    body: `<p class="note">Paste tab-separated or CSV rows (include the header row). Records stay local.</p>
+      <label>Destination<select id="impKind"><option value="target">Company targets</option><option value="outreach">Contacts</option><option value="role">Roles</option></select></label>
+      <label>Rows<textarea id="impText" rows="6" spellcheck="false"></textarea></label><div id="impPrev"></div>`,
+    actions: [{ label: 'Preview', onClick: () => previewImport() },
+      { label: 'Save', primary: true, onClick: async () => {
+        const parsed = apiImport(); if (!parsed) return toast('Nothing to import.');
+        const records = parsed.records.filter((r) => r.key || Object.keys(r.data).length);
+        try { const res = await api('/api/workbook/import', { method: 'POST', body: JSON.stringify({ kind: parsed.kind, records }) }); closeModal(); toast(`Imported ${res.total} record(s).`); await Promise.all([loadCompanies(), loadContacts()]); render(); }
+        catch (e) { toast('Import failed: ' + esc(e.message)); }
+      } }],
+  });
+}
+function apiImport() {
+  const kind = $('#impKind').value;
+  const { headers, rows } = parseDelimited($('#impText').value);
+  if (!headers.length) return null;
+  const fields = HEADER_MAPS[kind] || [];
+  const map = headers.map((h) => { const nk = normKey(h); for (const [f, syns] of fields) if (syns.includes(nk)) return f; return null; });
+  const records = [];
+  for (const cells of rows) {
+    const data = {}; headers.forEach((h, i) => { const f = map[i]; const v = cells[i] == null ? '' : String(cells[i]).trim(); if (f && v) data[f] = v; });
+    const key = String(data.company || data.contact || data.role || '').trim();
+    records.push({ key, data });
+  }
+  return { kind, records, headers, map };
+}
+function previewImport() {
+  const p = apiImport();
+  if (!p) { $('#impPrev').innerHTML = '<div class="banner warn">Paste rows first.</div>'; return; }
+  const ok = p.records.filter((r) => r.key || Object.keys(r.data).length);
+  $('#impPrev').innerHTML = `<div class="note" style="margin-top:8px">${ok.length} row(s) ready · ${p.map.filter(Boolean).length} headers mapped</div>`;
+}
+
+/* ============================================================= CONNECTIONS */
+
+async function renderConnections(m) {
+  await refreshConnections();
+  const b = (state.connections && state.connections.browsy) || {};
+  const c = (state.connections && state.connections.clinqy) || {};
+  const lb = (state.connections && state.connections.localBrowser) || {};
+  const ex = (state.connections && state.connections.extension) || {};
+  const conn = (o) => `<span class="status"><span class="dot ${o.connected ? 'on' : 'off'}"></span>${o.connected ? 'connected' : o.available ? 'available (not started)' : 'not found'}</span>`;
+
+  m.innerHTML = `
+    <div class="sechead"><h1>Connections</h1>
+      <p>Job Pilot is itself an MCP server. These are the engines behind it — status here reflects what actually responded, nothing is faked.</p></div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread"><h3 style="margin:0">Built-in browser engine</h3>${conn(lb)}</div>
+      <div class="sub">Browsy's full tool surface (${lb.toolCount || 17} tools) served by the Job Pilot extension in your real Chrome session. No Browsy install required.</div>
+      <div class="row" style="margin-top:10px"><button class="btn btn-sm btn-primary" data-act="browser-workspace">Open browser workspace</button>
+        <span class="note">snapshot · click · type · tabs · screenshot</span></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread"><h3 style="margin:0">Browsy <span class="note">(optional)</span></h3>${conn(b)}</div>
+      <div class="sub">The external Browsy MCP server, preferred when installed. ${b.toolCount ? b.toolCount + ' tools discovered.' : 'Not installed here — the built-in engine above is used instead.'}</div>
+      ${b.error ? `<div class="banner warn" style="margin-top:10px">${esc(b.error)}</div>` : ''}
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread"><h3 style="margin:0">Clinqy</h3>${conn(c)}</div>
+      <div class="sub">Native Mac automation, accessibility and browser context. ${c.toolCount ? c.toolCount + ' tools discovered.' : ''}</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn btn-sm btn-primary" data-act="clinqy-look">Look at screen</button>
+        <button class="btn btn-sm" data-act="clinqy-stats">Run statistics</button>
+        <button class="btn btn-sm" data-act="clinqy-run">Run a native task</button>
+      </div>
+      ${c.error ? `<div class="banner warn" style="margin-top:10px">${esc(c.error)}</div>` : ''}
+      <h3 style="margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Native features</h3>
+      <div id="clinqyCaps"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread"><h3 style="margin:0">Chrome extension</h3>${conn(ex)}</div>
+      <div class="sub">Runs the browser engine, X / Reddit capture and application-form pre-fill in your own session. Loaded unpacked from <code>extension/</code>.</div>
+    </div>
+
+    <div class="card">
+      <h3>Recent adapter activity</h3>
+      <div id="auditList"></div>
+    </div>`;
+
+  renderClinqyCaps();
+  renderAudit();
+  $$('[data-act]', m).forEach((btn) => btn.addEventListener('click', () => onTopAction(btn.dataset.act)));
+}
+function renderClinqyCaps() {
+  const box = $('#clinqyCaps'); if (!box) return;
+  const caps = state.clinqyCaps || [];
+  const stateLabel = (s) => ({ available: 'available', disconnected: 'disconnected', 'native-app': 'native app' }[s] || s);
+  box.innerHTML = caps.map((c) => `<div class="cap"><span><b>${esc(c.label)}</b> <span class="note">${esc(c.note || c.via || '')}</span></span>
+    <span class="cstate">${esc(stateLabel(c.state))}${c.state === 'native-app' ? ' · open the Clinqy app' : ''}</span></div>`).join('');
+}
+function renderAudit() {
+  const box = $('#auditList'); if (!box) return;
+  box.innerHTML = (state.audit || []).length ? state.audit.slice(0, 15).map((a) =>
+    `<div class="cap"><span class="mono">${esc(a.adapter)}.${esc(a.tool)}</span><span class="cstate">${esc(a.outcome || '')} · ${ago(a.at)}</span></div>`).join('')
+    : '<p class="note">No adapter calls recorded yet.</p>';
+}
+
+/* -------- Browsy browser workspace -------- */
+async function openBrowserWorkspace() {
+  openModal({ title: 'Browser workspace', body: '<p class="note"><span class="spin"></span> Listing tabs…</p>', actions: [{ label: 'Close', onClick: closeModal }] });
+  await refreshBrowserWs();
+}
+async function refreshBrowserWs() {
+  let d;
+  try { d = await api('/api/browsy/tabs'); } catch (e) { $('#modalBody').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; return; }
+  const tabs = d.tabs || [];
+  $('#modalBody').innerHTML = `
+    <div class="banner ${d.unknownOutcome ? 'warn' : 'ok'}">${d.unknownOutcome ? 'Last action outcome unknown — inspect a tab before acting.' : 'Read-only until you confirm an action.'}</div>
+    <label>Tab</label>
+    <select id="bwTab">${tabs.map((t) => `<option value="${t.id}">${esc((t.title || 'untitled').slice(0, 50))} — ${esc((t.url || '').slice(0, 50))}</option>`).join('')}</select>
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-sm" data-bw="snapshot">Snapshot</button>
+      <button class="btn btn-sm" data-bw="screenshot">Screenshot</button>
+      <button class="btn btn-sm" data-bw="get-html">Get HTML</button>
+      <button class="btn btn-sm" data-bw="reload">Reload</button>
+      <button class="btn btn-sm" data-bw="back">Back</button>
+      <button class="btn btn-sm" data-bw="forward">Forward</button>
+      <button class="btn btn-sm" data-bw="release">Release tab</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="bwNav" placeholder="https://…" style="flex:1" />
+      <button class="btn btn-sm" data-bw="navigate">Navigate</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="bwRef" placeholder="ref (from snapshot)" style="width:130px" />
+      <input id="bwType" placeholder="text to type" style="flex:1" />
+      <button class="btn btn-sm" data-bw="click">Click</button>
+      <button class="btn btn-sm" data-bw="type">Type</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="bwKey" placeholder="key (Enter, Shift+Tab…)" style="width:150px" />
+      <select id="bwDir"><option>down</option><option>up</option><option>left</option><option>right</option></select>
+      <input id="bwAmt" type="number" placeholder="600" style="width:80px" />
+      <button class="btn btn-sm" data-bw="key">Press key</button>
+      <button class="btn btn-sm" data-bw="scroll">Scroll</button>
+      <button class="btn btn-sm" data-bw="wait">Wait 500ms</button>
+    </div>
+    <div id="bwOut" style="margin-top:12px"></div>`;
+  $('#bwOut').innerHTML = '<p class="note">Read from a tab with Snapshot or Screenshot.</p>';
+  $('#modalBody').querySelectorAll('[data-bw]').forEach((b) => b.onclick = () => browserWsAction(b.dataset.bw));
+}
+function bwTabId() { const el = $('#bwTab'); return el ? Number(el.value) : null; }
+const BW_READ = new Set(['snapshot', 'screenshot', 'get-html']);
+function browserWsCall(tool, args, preview) {
+  return api('/api/browsy/call', { method: 'POST', body: JSON.stringify({ tool, arguments: args, preview, confirmed: !preview }) });
+}
+async function browserWsAction(kind) {
+  const out = $('#bwOut');
+  const tabId = bwTabId();
+  const map = {
+    snapshot: ['browser_snapshot', { tabId }, 'read'],
+    screenshot: ['browser_screenshot', { tabId }, 'read'],
+    'get-html': ['browser_get_html', { tabId }, 'read'],
+    reload: ['browser_reload', { tabId }, 'mut'],
+    back: ['browser_back', { tabId }, 'mut'],
+    forward: ['browser_forward', { tabId }, 'mut'],
+    release: ['browser_release', { tabId }, 'mut'],
+    navigate: ['browser_navigate', { tabId, url: $('#bwNav').value.trim() }, 'mut'],
+    click: ['browser_click', $('#bwRef').value ? { tabId, ref: $('#bwRef').value.trim() } : { tabId }, 'mut'],
+    type: ['browser_type', { tabId, ref: $('#bwRef').value.trim() || undefined, text: $('#bwType').value }, 'mut'],
+    key: ['browser_press_key', { tabId, key: $('#bwKey').value.trim() }, 'mut'],
+    scroll: ['browser_scroll', { tabId, direction: $('#bwDir').value, amount: Number($('#bwAmt').value) || 600 }, 'mut'],
+    wait: ['browser_wait', { tabId, milliseconds: 500 }, 'read'],
+  };
+  const [tool, args] = map[kind] || [];
+  if (!tool) return;
+  if (tabId == null || Number.isNaN(tabId)) return toast('Pick a tab first.');
+
+  if (map[kind][2] === 'mut') {
+    let p;
+    try { p = await browserWsCall(tool, args, true); } catch (e) { return toast('Preview failed: ' + esc(e.message)); }
+    if (!p.ok) return toast('Invalid action: ' + esc((p.errors || []).join('; ')));
+    return openModal({ title: 'Confirm browser action', body: `<p>${esc(p.summary)}</p><pre class="mono">${esc(JSON.stringify(p.arguments, null, 2))}</pre>`,
+      actions: [{ label: 'Cancel', onClick: () => { closeModal(); refreshBrowserWs(); } },
+        { label: 'Run action', primary: true, onClick: async () => { closeModal(); await runBrowserWs(tool, args); } }] });
+  }
+  await runBrowserWs(tool, args);
+}
+async function runBrowserWs(tool, args) {
+  const out = () => $('#bwOut');
+  if (out()) out().innerHTML = '<p class="note"><span class="spin"></span> working…</p>';
+  try {
+    const r = await api('/api/browsy/call', { method: 'POST', body: JSON.stringify({ tool, arguments: args, confirmed: true }) });
+    if (!out()) openBrowserWorkspaceReturn();
+    renderBrowserWsResult(tool, r);
+  } catch (e) {
+    if (out()) out().innerHTML = `<div class="banner bad">${esc(e.message)}${e.needsInspection ? ' — take a fresh snapshot before acting again.' : ''}</div>`;
+  }
+}
+function openBrowserWorkspaceReturn() {}
+function renderBrowserWsResult(tool, r) {
+  const out = $('#bwOut'); if (!out) { toast('Action ran.'); return; }
+  let html = '';
+  if (r.unknownOutcome) html += '<div class="banner warn">Outcome unknown (timeout or disconnect). Take a fresh snapshot before repeating.</div>';
+  if (tool === 'browser_screenshot' && r.images && r.images.length) {
+    html += `<img alt="screenshot" src="data:${r.images[0].mimeType};base64,${r.images[0].data}" />`;
+  } else if (tool === 'browser_snapshot' && r.parsed && r.parsed.snapshot) {
+    html += `<pre>${esc(r.parsed.snapshot.slice(0, 6000))}</pre>`;
+  } else {
+    html += `<pre>${esc((r.text || '').slice(0, 6000))}</pre>`;
+  }
+  out.innerHTML = html;
+  refreshConnections();
+}
+
+/* -------- Clinqy workspace -------- */
+async function clinicLook() {
+  openModal({ title: 'Clinqy — look at the screen', body: '<p class="note"><span class="spin"></span> reading…</p>', actions: [{ label: 'Close', onClick: closeModal }] });
+  try { const r = await api('/api/clinqy/look', { method: 'POST', body: JSON.stringify({ mode: 'page' }) }); $('#modalBody').innerHTML = `<pre>${esc((r.text || '').slice(0, 8000))}</pre>`; }
+  catch (e) { $('#modalBody').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+}
+async function clinicStats() {
+  openModal({ title: 'Clinqy — run statistics', body: '<p class="note"><span class="spin"></span> reading…</p>', actions: [{ label: 'Close', onClick: closeModal }] });
+  try { const r = await api('/api/clinqy/stats?days=7'); $('#modalBody').innerHTML = `<pre>${esc((r.text || '').slice(0, 8000))}</pre>`; }
+  catch (e) { $('#modalBody').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+}
+function clinicRun() {
+  openModal({ title: 'Clinqy — run a native task', body: `
+    <p class="note">A plain-language task Clinqy performs on your Mac with a visible cursor. It asks before paying, sending or submitting.</p>
+    <label>Task<textarea id="cqTask" rows="3" placeholder="e.g. open the placements sheet and read me the first row"></textarea></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="cqDry" checked /> dry-run (point at each step without doing it)</label>
+    <label>Timeout (seconds)<input id="cqTimeout" type="number" value="120" min="1" max="900" /></label>
+    <div id="cqOut"></div>`,
+    actions: [{ label: 'Cancel', onClick: closeModal },
+      { label: 'Preview', onClick: () => clinicPreview() },
+      { label: 'Run', primary: true, onClick: () => clinicConfirm() }] });
+}
+async function clinicPreview() {
+  const task = $('#cqTask').value.trim(); if (!task) return toast('Describe the task.');
+  const p = await api('/api/clinqy/preview', { method: 'POST', body: JSON.stringify({ tool: 'clinqy_run', arguments: { task, dry: $('#cqDry').checked, timeout: Number($('#cqTimeout').value) || 120 } }) });
+  $('#cqOut').innerHTML = p.ok ? `<div class="banner ok">${esc(p.summary)}</div>` : `<div class="banner bad">${esc((p.errors || []).join('; '))}</div>`;
+}
+async function clinicConfirm() {
+  const task = $('#cqTask').value.trim(); if (!task) return toast('Describe the task.');
+  const dry = $('#cqDry').checked, timeout = Number($('#cqTimeout').value) || 120;
+  openModal({ title: 'Confirm native task', body: `<p>${dry ? 'Dry-run' : 'Run'}: “${esc(task)}” on your Mac (timeout ${timeout}s).</p>`,
+    actions: [{ label: 'Back', onClick: clinicRun }, { label: dry ? 'Dry-run now' : 'Run now', primary: true, onClick: async () => {
+      clinicRun(); $('#cqTask').value = task; $('#cqDry').checked = dry; $('#cqTimeout').value = timeout;
+      $('#cqOut').innerHTML = '<p class="note"><span class="spin"></span> running… <button class="btn btn-sm" id="cqCancel">Cancel</button></p>';
+      const cancelBtn = $('#cqCancel'); if (cancelBtn) cancelBtn.onclick = async () => { await api('/api/clinqy/cancel', { method: 'POST', body: '{}' }); toast('Cancellation requested.'); };
+      try { const r = await api('/api/clinqy/run', { method: 'POST', body: JSON.stringify({ task, dry, timeout, confirmed: true }) }); $('#cqOut').innerHTML = `<pre>${esc((r.text || '').slice(0, 8000))}</pre>`; refreshConnections(); }
+      catch (e) { $('#cqOut').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+    } }] });
+}
+
+/* ------------------------------------------------------------ top actions */
+function onTopAction(act) {
+  if (act === 'scan') return doScan();
+  if (act === 'capture') return openCapture();
+  if (act === 'export') return openExport();
+  if (act === 'digest') return openDigest();
+  if (act === 'research-new') return renderResearch($('#main'));
+  if (act === 'export-pipeline') return window.open('/api/export/pipeline.csv', '_blank');
+  if (act === 'export-companies') return window.open('/api/export/companies.csv', '_blank');
+  if (act === 'export-contacts') return window.open('/api/export/contacts.csv', '_blank');
+  if (act === 'recheck') return refreshConnections(true).then(() => render());
+  if (act === 'browser-workspace') return openBrowserWorkspace();
+  if (act === 'clinqy-look') return clinicLook();
+  if (act === 'clinqy-stats') return clinicStats();
+  if (act === 'clinqy-run') return clinicRun();
+}
+
+/* ------------------------------------------------------------- global wiring */
+function closeDrawer() {
+  const d = $('#drawer'); d.classList.remove('open'); d.setAttribute('aria-hidden', 'true');
+  const o = $('#overlay'); o.classList.remove('show'); setTimeout(() => { o.hidden = true; }, 180);
+  if (state.focusBefore && state.focusBefore.focus) state.focusBefore.focus();
+}
+$('#drawerClose').onclick = closeDrawer;
+$('#overlay').onclick = closeDrawer;
+$('#modalClose').onclick = closeModal;
+$('#modalOverlay').onclick = closeModal;
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') { if ($('#modal') && !$('#modal').hidden) return closeModal(); if ($('#drawer').classList.contains('open')) return closeDrawer(); }
+  if (ev.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { ev.preventDefault(); $('#fq')?.focus(); }
+});
+$('#tabs').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-tab]'); if (!b) return;
+  state.section = b.dataset.tab; render();
+});
+$('#topActions').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]'); if (b) onTopAction(b.dataset.act);
+});
+$('#main').addEventListener('click', (ev) => {
+  const g = ev.target.closest('[data-goto]'); if (g) { state.section = g.dataset.goto; return render(); }
+  const act = ev.target.closest('[data-act]');
+  if (!act) return;
+  if (act.dataset.act === 'scan') return doScan();
+  if (act.dataset.act === 'capture') return openCapture();
+  const card = ev.target.closest('.item');
+  if (card && ['detail','open'].includes(act.dataset.act)) return openJob(Number(card.dataset.id));
+});
+$('#main').addEventListener('keyup', (ev) => {
+  if (ev.target.id === 'fq') { clearTimeout(window.__ft); window.__ft = setTimeout(() => { readFilters(); loadJobs(); }, 300); }
+});
+
+/* boot + polite polling */
+boot();
+setInterval(() => { if (!document.hidden) refreshState(); }, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "port": 8787,
+
+  "profile": {
+    "firstName": "",
+    "lastName": "",
+    "email": "",
+    "phone": "",
+    "location": "Bengaluru, India",
+    "country": "India",
+    "linkedin": "",
+    "github": "",
+    "portfolio": "",
+    "twitter": "",
+    "resumePath": "",
+    "currentCompany": "",
+    "currentTitle": "Software Engineer",
+    "yearsExperience": "3",
+    "noticePeriod": "30 days",
+    "expectedSalary": ""
+  },
+
+  "answers": [
+    { "pattern": "authoriz|legally (allowed|permitted) to work|right to work", "value": "Yes" },
+    { "pattern": "sponsor", "value": "No" },
+    { "pattern": "notice period|availability to join|when can you (start|join)", "value": "30 days" },
+    { "pattern": "expected (salary|ctc|compensation)|salary expectation", "value": "" },
+    { "pattern": "how did you hear|where did you (hear|find)", "value": "Company careers page" },
+    { "pattern": "willing to relocate|relocat", "value": "Yes" },
+    { "pattern": "are you comfortable with (a )?(hybrid|onsite|in-office)", "value": "Yes" },
+    { "pattern": "do you (now|currently) require|future sponsorship", "value": "No" }
+  ],
+
+  "targets": {
+    "titles": ["software engineer", "sde", "backend", "back-end", "frontend", "front-end", "full stack", "fullstack", "platform engineer", "devops", "site reliability", "sre", "data engineer", "ml engineer", "machine learning", "mobile engineer", "android", "ios", "node", "python", "golang", "typescript", "react", "java"],
+    "skills": ["javascript", "typescript", "node", "react", "next.js", "python", "django", "flask", "fastapi", "go", "golang", "java", "spring", "sql", "postgres", "mysql", "mongodb", "redis", "aws", "gcp", "azure", "docker", "kubernetes", "k8s", "terraform", "graphql", "rest", "kafka", "rabbitmq", "grpc", "microservices", "distributed systems", "ci/cd", "linux", "elasticsearch", "spark", "airflow"],
+    "locations": ["bangalore", "bengaluru", "remote", "india", "hyderabad", "pune", "mumbai", "gurgaon", "gurugram", "noida", "delhi", "chennai", "anywhere"],
+    "negative": ["unpaid", "commission only", "equity only", "no salary", "only us", "us citizens only", "must be located in the us", "must be based in the us", "w2 only", "c2c", "corp to corp", "field sales", "telecalling", "business development"]
+  },
+
+  "x": {
+    "queries": [
+      "\"we are hiring\" (\"software engineer\" OR backend OR frontend) remote",
+      "hiring \"software engineer\" india",
+      "\"we're hiring\" developer (bangalore OR bengaluru OR remote)",
+      "hiring \"full stack\" developer remote india"
+    ],
+    "accounts": [],
+    "perQuery": 60,
+    "maxScrolls": 3
+  },
+
+  "reddit": {
+    "subs": ["forhire", "jobbit", "hiring", "RemoteJobs"]
+  },
+
+  "boards": {
+    "file": "companies.json"
+  },
+
+  "safety": {
+    "autoSubmit": false
+  }
+}

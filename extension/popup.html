@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: dark; }
+  body { width: 320px; margin: 0; background: #0b0d12; color: #e7eaf3;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { padding: 12px 13px; }
+  .brand { font-weight: 800; font-size: 15px; letter-spacing: -.02em; }
+  .brand span { color: #7aa2ff; }
+  .row { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #f85149; display: inline-block; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+  .dim { color: #8b93a7; }
+  .chip { background: #1d2333; border: 1px solid #232838; border-radius: 999px; padding: 2px 9px; font-size: 11.5px; color: #aab2c5; }
+  .chip b { color: #e7eaf3; }
+  button { width: 100%; text-align: left; font: inherit; font-weight: 600; cursor: pointer;
+    border: 1px solid #232838; background: #151a24; color: #e7eaf3; border-radius: 9px; padding: 8px 11px; margin-top: 6px; }
+  button:hover { border-color: #39405a; background: #1b2130; }
+  button.primary { background: #2f6df6; border-color: #2f6df6; color: #fff; }
+  button.primary:hover { background: #4a83ff; }
+  h4 { margin: 12px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #8b93a7; }
+  .hist { font-size: 11.5px; color: #8b93a7; display: flex; flex-direction: column; gap: 3px; }
+  .hist b { color: #c3cadd; font-weight: 500; }
+  .status { font-size: 12px; margin-top: 7px; min-height: 16px; color: #8b93a7; }
+  .ok { color: #6ee787; } .bad { color: #f85149; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Job Pilot <span style="font-weight:400;font-size:11px;color:#8b93a7">Clinqy × Browsy engine</span></div>
+  <div class="row">
+    <span><span class="dot" id="dot"></span> <span class="dim" id="connTxt">checking server…</span></span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="chip">new <b id="cNew">–</b></span>
+    <span class="chip">hot <b id="cHot">–</b></span>
+  </div>
+
+  <button class="primary" id="fill">⚡ Fill this page's application form</button>
+  <button id="scanx">𝕏 Scan X now (uses your session)</button>
+  <button id="scanr">🕸 Scan Reddit now</button>
+  <button id="dash">Open dashboard →</button>
+
+  <h4>recent</h4>
+  <div class="hist" id="hist"><span class="dim">nothing yet</span></div>
+  <div class="status" id="status"></div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

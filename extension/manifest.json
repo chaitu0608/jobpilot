@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Job Pilot — Clinqy × Browsy engine",
+  "version": "0.2.0",
+  "description": "Local browser engine for Job Pilot: scans X/Reddit in your real session, exposes Browsy-style browser tools to your MCP agent, and pre-fills applications you review and submit yourself.",
+  "permissions": ["tabs", "scripting", "alarms", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "<all_urls>"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Job Pilot" }
+}

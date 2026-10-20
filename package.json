@@ -1,0 +1,19 @@
+{
+  "name": "jobpilot",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Local-first job-search cockpit and MCP server: Browsy-style browser tools in your real Chrome session, Clinqy native reach, durable job workflow. Never auto-submits.",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "setup": "node server/cli.js setup",
+    "serve": "node --no-warnings=ExperimentalWarning server/http.js",
+    "mcp": "node --no-warnings=ExperimentalWarning server/mcp.js",
+    "scan": "node --no-warnings=ExperimentalWarning server/cli.js scan",
+    "x": "node --no-warnings=ExperimentalWarning server/cli.js scan-x",
+    "reddit": "node --no-warnings=ExperimentalWarning server/cli.js scan-reddit",
+    "list": "node --no-warnings=ExperimentalWarning server/cli.js list",
+    "digest": "node --no-warnings=ExperimentalWarning server/cli.js digest",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

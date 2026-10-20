@@ -1,0 +1,54 @@
+{
+  "_comment": "Company boards polled by the server-side scan. All tokens below were verified live. Add/remove freely — find tokens from the careers URL: boards.greenhouse.io/<token>, jobs.lever.co/<token>, jobs.ashbyhq.com/<org>.",
+
+  "greenhouse": [
+    "databricks",
+    "stripe",
+    "cloudflare",
+    "gitlab",
+    "coinbase",
+    "brex",
+    "pinterest",
+    "robinhood",
+    "reddit",
+    "figma",
+    "twilio",
+    "instacart",
+    "vercel",
+    "highradius",
+    "slice",
+    "groww",
+    "glance",
+    "dropbox",
+    "mongodb",
+    "elastic",
+    "asana",
+    "duolingo",
+    "discord",
+    "netlify",
+    "airtable"
+  ],
+
+  "lever": [
+    "paytm",
+    "meesho",
+    "cred",
+    "palantir",
+    "binance"
+  ],
+
+  "ashby": [
+    "supabase",
+    "linear",
+    "resend",
+    "posthog",
+    "deepgram",
+    "vanta",
+    "modal",
+    "ramp",
+    "sarvam",
+    "atlan",
+    "browserbase",
+    "perplexity"
+  ]
+}
