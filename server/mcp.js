@@ -227,7 +227,7 @@ async function statusTool() {
   const profileKeys = packet?.profile ? Object.keys(packet.profile) : [];
   const ready = Boolean(packet?.profile?.firstName && packet?.profile?.email);
   const lines = [
-    `Jobs: ${state.stats?.total ?? '?'} total · ${state.stats?.highScore ?? '?'} scoring ≥55`,
+    `Jobs: ${state.stats?.total ?? '?'} total · ${state.stats?.highScore ?? '?'} high-scoring new (≥60)`,
     `Buckets: ${Object.entries(state.buckets || {}).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}`,
     `Pipeline: ${state.pipeline ?? 0} · companies: ${state.companies ?? 0} · contacts: ${state.contacts ?? 0}`,
     `Extension: ${state.ext?.connected ? 'connected' : 'offline'} · built-in browser engine: ${c.localBrowser?.connected ? 'ready' : 'offline'}`,

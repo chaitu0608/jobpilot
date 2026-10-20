@@ -549,7 +549,7 @@ const handlers = {
     } catch (e) {
       return [e.unknownOutcome ? 504 : 400, {
         error: e.message, unknownOutcome: Boolean(e.unknownOutcome),
-        needsInspection: args.tabId != null ? localBrowser.needsInspection(args.tabId) : localBrowser.needsInspection(null),
+        needsInspection: args.tabId != null ? localBrowser.needsInspection(Number(args.tabId)) : localBrowser.needsInspection(null),
       }];
     }
   },
@@ -570,7 +570,19 @@ const handlers = {
     const allowed = new Set(['scan_x', 'scan_reddit', 'fill_current', 'ping']);
     if (!allowed.has(type)) return [400, { error: 'type must be one of scan_x, scan_reddit, fill_current, ping' }];
     const timeoutMs = Math.min(Math.max(Number(body.timeoutMs) || 180000, 5000), 600000);
-    const cmd = enqueue(db, type, body.payload || {});
+    const cfg = loadConfig();
+    let payload = body.payload || {};
+    if (type === 'scan_x') {
+      payload = {
+        queries: payload.queries || cfg.x?.queries || [],
+        accounts: payload.accounts || cfg.x?.accounts || [],
+        perQuery: payload.perQuery || cfg.x?.perQuery || 60,
+        maxScrolls: payload.maxScrolls || cfg.x?.maxScrolls || 3,
+      };
+    } else if (type === 'scan_reddit') {
+      payload = { subs: payload.subs || cfg.reddit?.subs || [] };
+    }
+    const cmd = enqueue(db, type, payload);
     try {
       const done = await waitForCommand(db, cmd.id, { timeoutMs });
       return [200, { queued: cmd.id, type, status: done.status, result: done.result?.result ?? null, error: done.result?.error ?? null }];

@@ -1,5 +1,8 @@
 # Job Pilot
 
+[![tests](https://github.com/chaitu0608/jobpilot/actions/workflows/test.yml/badge.svg)](https://github.com/chaitu0608/jobpilot/actions/workflows/test.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **A local-first job-search cockpit — and its own MCP server.** Job Pilot is the
 practical child of [Browsy](https://github.com/adityabelgaonkar05/browsy) and
 [Clinqy](https://github.com/Amrit-Nigam/clinqy):
